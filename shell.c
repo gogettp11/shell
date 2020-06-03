@@ -12,7 +12,8 @@
 #define MAXCOMMANDS 20
 #define MAXLINELENGHT 128
 FILE * history;
-char* current_history[MAXCOMMANDS+1];
+char* current_history[MAXCOMMANDS];
+int xxx = 0;
 
 char* read_input(){
 
@@ -27,10 +28,11 @@ char* read_input(){
       exit(EXIT_FAILURE);
     }
   }
+  int lenght = strlen(line);
+  line[lenght-1] = 0;
   return (char*)line;
 }
-char **parse(char *line)
-{
+char **parse(char *line){
   int bufsize = BUFSIZE, position = 0;
   char **tokens = malloc(bufsize * sizeof(char*));
   char *token;
@@ -59,19 +61,6 @@ char **parse(char *line)
   return tokens;
 }
 
-int is_last_arg$(char **args){
-    int i = 1;
-    char *arg = NULL;
-    do{
-        arg = args[i];
-    }while(args[i+1]==NULL);
-
-    if(*arg = '$')
-        return 1;
-    else
-        return 0;
-}
-
 int execute(char** args){
 
     pid_t pid, wpid;
@@ -86,12 +75,15 @@ int execute(char** args){
     } else if (pid < 0) {
         perror("fork error");
     } else {
-            do {
-            wpid = waitpid(pid, &status, WUNTRACED);
-            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        do {
+         wpid = waitpid(pid, &status, WUNTRACED);
+        }while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
 
     return 1;
+}
+int lastArg(char **args){
+
 }
 
 void currentDir(){
@@ -125,47 +117,61 @@ int readLine(FILE *file, char* line) {
         count++;
         ch = getc(file);
     }
-    
-    if(ch == EOF)
-      return 0;
+
+    if(ch == EOF){
+      xxx++;
+      if(xxx == 2){
+        xxx = 0;
+        return 1;
+      }
+    }
 
     lineBuffer[count] = '\0';
-    strncpy(line, lineBuffer, (count + 1));
+    strncpy(line, lineBuffer, (count));
     free(lineBuffer);
-    return 1;
+    return 0;
 }
 void init(){
 
     clear();
-    history = fopen("history.txt", "r+");
+    history = fopen("history.txt", "r");
     if(history == NULL)
       printf("error opening history of commands");
     printf("current user: %s\n", getenv("USER"));
-    printf("current history:");
+    printf("*********\n");
+    printf("current history:\n");
     char *buffer;
-    buffer = (char*)malloc(sizeof(char)*MAXLINELENGHT);
-    for(int counter = 0; counter < MAXCOMMANDS; counter++){
-      if(readLine(history, buffer)!=0){
-        current_history[counter] = buffer;
-        printf("%d: %s", counter, buffer);
-        }
+    for(int counter = 1; counter < MAXCOMMANDS+1; counter++){
+      buffer = (char*)malloc(sizeof(char)*MAXLINELENGHT);
+      if(readLine(history, buffer)!=0)
+        break;
+      current_history[counter-1] = buffer;
+      printf("%d: %s\n", counter, current_history[counter-1]);
     }
+    if(fclose(history)!=0)
+      printf("error closing file");
     sleep(2);
     clear();
 }
-void write_history(){
+void write_history(char *line){
+  char *buffer[MAXCOMMANDS];
   for(int i = 0; i < MAXCOMMANDS; i++){
-
+      buffer[i] = current_history[i];
+  }
+  current_history[0] = line;
+  for(int i = 0; i < MAXCOMMANDS-1; i++){
+    current_history[i+1] =  buffer[i];
   }
 }
-void read_history(){
-
+void save_history(){
+  history = fopen("history.txt","w");
+  if(history==NULL)
+    printf("error opening file");
+  for(int i = 0; i < MAXCOMMANDS; i++)
+    fprintf(history,"%s\n",current_history[i]);
+  if(fclose(history)!=0)
+    printf("error closing file");
 }
-
-void quit(){
-
-}
-
 int main(){
 
     char *line;
@@ -174,14 +180,14 @@ int main(){
 
     init();
 
-  do {
+  do{
     currentDir();
     printf("> ");
     line = read_input();
+    write_history(line);
+    save_history();
     args = parse(line);
     status = execute(args);
-    free(line);
     free(args);
-  } while (status);
-
+  }while (status);
 }
