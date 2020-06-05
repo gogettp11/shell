@@ -13,8 +13,11 @@
 #define MAXLINELENGHT 128
 FILE * history;
 char* current_history[MAXCOMMANDS];
+//zmienna pomocnicza ,która sprawia ,że działa wczytywanie z pliku
+//bez niej ucina ostatnią linijkę
 int xxx = 0;
 
+//wczytuje wejście, funkcja getline wczytuje aż do napotkania znaku entera
 char* read_input(){
 
   char *line = NULL;
@@ -32,6 +35,8 @@ char* read_input(){
   line[lenght-1] = 0;
   return (char*)line;
 }
+//rozbija char zawierający cały input 
+//na pojedyncze znaki dzięki którym można uruchomić program i to z argumentami
 char **parse(char *line){
   int bufsize = BUFSIZE, position = 0;
   char **tokens = malloc(bufsize * sizeof(char*));
@@ -60,7 +65,7 @@ char **parse(char *line){
   tokens[position] = NULL;
   return tokens;
 }
-
+//uruchamia program
 int execute(char** args){
 
     pid_t pid, wpid;
@@ -82,15 +87,13 @@ int execute(char** args){
 
     return 1;
 }
-int lastArg(char **args){
-
-}
-
+//wyświetla aktualny folder
 void currentDir(){
     char cwd[1024]; 
     getcwd(cwd, sizeof(cwd)); 
     printf("%s", cwd); 
 }
+//wczytuje jedną linijkę z folderu gdzie zapisana jest historia
 int readLine(FILE *file, char* line) {
 
     int maximumLineLength = MAXLINELENGHT;
@@ -103,7 +106,8 @@ int readLine(FILE *file, char* line) {
 
     char ch = getc(file);
     int count = 0;
-
+    //wczytuje chary aż nie spotka EOF lub \n jeśli okaże się ,że za mało
+    //pamięci dla zmiennej zostało przydzielone - realokuje 
     while ((ch != '\n') && (ch != EOF)) {
         if (count == maximumLineLength) {
             maximumLineLength += 128;
@@ -131,6 +135,7 @@ int readLine(FILE *file, char* line) {
     free(lineBuffer);
     return 0;
 }
+//inizjalizuje historię, wczytuje historię, wyświetla powitanie przy włączeniu
 void init(){
 
     clear();
@@ -153,6 +158,7 @@ void init(){
     sleep(2);
     clear();
 }
+//zapisuje historię do zmiennej w shellu, przesuwa pozycję o jeden
 void write_history(char *line){
   char *buffer[MAXCOMMANDS];
   for(int i = 0; i < MAXCOMMANDS; i++){
@@ -163,6 +169,7 @@ void write_history(char *line){
     current_history[i+1] =  buffer[i];
   }
 }
+//zapisuje historię do pliku
 void save_history(){
   history = fopen("history.txt","w");
   if(history==NULL)
@@ -173,9 +180,11 @@ void save_history(){
     printf("error closing file");
 }
 int main(){
-
+    //zmienna line to cały input
     char *line;
+    //args to line rozbite na tokeny
     char **args;
+    //status jest jeden jak się wykona program 
     int status;
 
     init();
@@ -183,10 +192,15 @@ int main(){
   do{
     currentDir();
     printf("> ");
+    //wczytuje historię
     line = read_input();
+    //zapisuje historię w zmiennej
     write_history(line);
+    //zapisuje historię w pliku
     save_history();
+    //rozbicie inputu na tokeny
     args = parse(line);
+    //wykonanie programu
     status = execute(args);
     free(args);
   }while (status);
