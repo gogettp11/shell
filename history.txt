@@ -1,3 +1,20 @@
-11
-22
+ls -al
 ls
+eks
+os
+osda
+lll
+as
+a
+
+ls
+firefox
+ss
+ls
+ls
+l
+ls
+hah
+ls
+kill -SIGQUIT 2586
+kill

@@ -10,30 +10,52 @@
 #define DELIM " \t\r\n\a"
 #define clear() printf("\033[H\033[J")
 #define MAXCOMMANDS 20
-#define MAXLINELENGHT 128
+#define MAXLINELENGHT 256
+void save_history();
 FILE * history;
 char* current_history[MAXCOMMANDS];
 //zmienna pomocnicza ,która sprawia ,że działa wczytywanie z pliku
 //bez niej ucina ostatnią linijkę
 int xxx = 0;
 
+int readLineEOF(FILE *file, char* line) {
+
+    char *lineBuffer = (char *)malloc(sizeof(char) * MAXLINELENGHT);
+
+    if (lineBuffer == NULL) {
+        printf("Error allocating memory for line buffer.");
+        exit(1);
+    }
+
+    char ch = getc(file);
+    int count = 0;
+    //wczytuje chary aż nie spotka EOF lub \n, za długi input - wyrzuca błąd
+    while ((ch != '\n') && (ch != EOF)) {
+        if (count == MAXLINELENGHT) {
+            perror("too long input");
+            exit(-1);
+        }
+        lineBuffer[count] = ch;
+        count++;
+        ch = getc(file);
+    }
+    if(ch==EOF){
+      printf("EOF found\n");
+      exit(0);
+    }
+    lineBuffer[count] = '\0';
+    strncpy(line, lineBuffer, (count));
+    free(lineBuffer);
+    return 0;
+}
 //wczytuje wejście, funkcja getline wczytuje aż do napotkania znaku entera
 char* read_input(){
 
-  char *line = NULL;
+  char *line = (char *)malloc(sizeof(char) * MAXLINELENGHT);
   ssize_t bufsize = 0;
-
-  if (getline(&line, &bufsize, stdin) == -1){
-    if (feof(stdin)) {
-      exit(EXIT_SUCCESS);
-    } else  {
-      perror("readline error");
-      exit(EXIT_FAILURE);
-    }
-  }
+  readLineEOF(stdin, line);
   int lenght = strlen(line);
-  line[lenght-1] = 0;
-  return (char*)line;
+  return line;
 }
 //rozbija char zawierający cały input 
 //na pojedyncze znaki dzięki którym można uruchomić program i to z argumentami
@@ -46,7 +68,6 @@ char **parse(char *line){
     fprintf(stderr, "allocation error\n");
     exit(EXIT_FAILURE);
   }
-
   token = strtok(line, DELIM);
   while (token != NULL) {
     tokens[position] = token;
@@ -65,6 +86,15 @@ char **parse(char *line){
   tokens[position] = NULL;
   return tokens;
 }
+char *lastToken(char **args){
+  char *temp;
+  int i = 0;
+  while(args[i] != NULL){
+    temp = args[i];
+    i++;
+  }
+  return temp;
+}
 //uruchamia program
 int execute(char** args){
 
@@ -79,11 +109,12 @@ int execute(char** args){
         exit(EXIT_FAILURE);
     } else if (pid < 0) {
         perror("fork error");
-    } else {
+    } else if(*lastToken(args)!='$') {
         do {
          wpid = waitpid(pid, &status, WUNTRACED);
         }while (!WIFEXITED(status) && !WIFSIGNALED(status));
-    }
+    }else
+      printf("$ entered, running process in background\n");
 
     return 1;
 }
@@ -135,8 +166,14 @@ int readLine(FILE *file, char* line) {
     free(lineBuffer);
     return 0;
 }
+void handler(int signal){
+  for(int i = 1; i < MAXCOMMANDS+1; i++)
+    printf("%d: %s\n",i,current_history[i]);
+  }
 //inizjalizuje historię, wczytuje historię, wyświetla powitanie przy włączeniu
 void init(){
+
+    signal(SIGQUIT, handler);
 
     clear();
     history = fopen("history.txt", "r");
@@ -179,6 +216,7 @@ void save_history(){
   if(fclose(history)!=0)
     printf("error closing file");
 }
+
 int main(){
     //zmienna line to cały input
     char *line;
@@ -196,7 +234,7 @@ int main(){
     line = read_input();
     //zapisuje historię w zmiennej
     write_history(line);
-    //zapisuje historię w pliku
+    //zapisuje w pliku
     save_history();
     //rozbicie inputu na tokeny
     args = parse(line);
